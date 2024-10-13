@@ -27,7 +27,7 @@ require('mason').setup({})
 require('mason-lspconfig').setup({
     -- Replace the language servers listed here
     -- with the ones you want to install
-    ensure_installed = {'tsserver', 'golangci_lint_ls', 'gopls', 'templ'},
+    ensure_installed = {'ts_ls', 'golangci_lint_ls', 'gopls', 'templ', 'pylsp'},
     handlers = {
         function(server_name)
             require('lspconfig')[server_name].setup({})
@@ -48,6 +48,20 @@ lsp_zero.extend_lspconfig({
     sign_text = true,
     lsp_attach = lsp_attach,
 })
+
+local pylsp = require('lspconfig').pylsp.setup{
+  settings = {
+    pylsp = {
+      plugins = {
+        pycodestyle = {
+          ignore = {'W391'},
+          maxLineLength = 100
+        }
+      }
+    }
+  }
+}
+
 
 -- Enable completion
 local cmp = require('cmp')
