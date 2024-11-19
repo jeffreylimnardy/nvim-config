@@ -62,7 +62,6 @@ local pylsp = require('lspconfig').pylsp.setup{
   }
 }
 
-
 -- Enable completion
 local cmp = require('cmp')
 local cmp_action = require('lsp-zero').cmp_action()
