@@ -21,39 +21,36 @@ vim.opt.rtp:prepend(lazypath)
 vim.g.mapleader = ' '
 
 local plugins = {
-  'nvim-treesitter/playground',
   'ray-x/go.nvim',
   'ray-x/guihua.lua', -- recommended if need floating window support
   "nvim-lua/plenary.nvim", -- don't forget to add this one if you don't have it yet!
-  { "catppuccin/nvim", name = "catppuccin" },
   { 'fcancelinha/nordern.nvim', name = "nordern" },
-  {'nvim-treesitter/nvim-treesitter', build = ':TSUpdate'},
-  {'nvim-telescope/telescope.nvim',
-    version = '0.1.8',
-	dependencies = { {'nvim-lua/plenary.nvim'} }
-  },
   {
-      'VonHeikemen/lsp-zero.nvim',
-      branch = 'v1.x',
-      dependencies = {
-          -- LSP Support
-          {'neovim/nvim-lspconfig'},
-          {'williamboman/mason.nvim'},
-          {'williamboman/mason-lspconfig.nvim'},
-
-          -- Autocompletion
-          {'hrsh7th/nvim-cmp'},
-          {'hrsh7th/cmp-buffer'},
-          {'hrsh7th/cmp-path'},
-          {'saadparwaiz1/cmp_luasnip'},
-          {'hrsh7th/cmp-nvim-lsp'},
-          {'hrsh7th/cmp-nvim-lua'},
-
-          -- Snippets
-          {'L3MON4D3/LuaSnip'},
-          {'rafamadriz/friendly-snippets'},
-      }
+    'nvim-treesitter/nvim-treesitter',
+    branch = 'main',
+    lazy = false,
+    build = ':TSUpdate',
   },
+  {'nvim-telescope/telescope.nvim',
+    -- Unpinned (track master): the 0.1.8 tag predates Neovim 0.12 and calls
+    -- the removed vim.treesitter.language.ft_to_lang + old nvim-treesitter API.
+    dependencies = { {'nvim-lua/plenary.nvim'} }
+  },
+  -- LSP + Mason (native vim.lsp.config, Neovim 0.11+)
+  { 'neovim/nvim-lspconfig' },
+  { 'mason-org/mason.nvim', opts = {} },
+  { 'mason-org/mason-lspconfig.nvim', opts = {} },
+
+  -- Completion
+  { 'hrsh7th/nvim-cmp' },
+  { 'hrsh7th/cmp-nvim-lsp' },
+  { 'hrsh7th/cmp-buffer' },
+  { 'hrsh7th/cmp-path' },
+  { 'saadparwaiz1/cmp_luasnip' },
+
+  -- Snippets
+  { 'L3MON4D3/LuaSnip' },
+  { 'rafamadriz/friendly-snippets' },
   {
       "ThePrimeagen/harpoon",
       branch = "harpoon2",

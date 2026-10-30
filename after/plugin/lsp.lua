@@ -1,93 +1,79 @@
-local lsp_zero = require('lsp-zero')
+-- Native Neovim 0.11 LSP setup (replaces lsp-zero)
 
--- lsp_attach is where you enable features that only work
--- if there is a language server active in the file
-local lsp_attach = function(client, bufnr)
-  local opts = {buffer = bufnr}
-
-  vim.keymap.set('n', 'K', '<cmd>lua vim.lsp.buf.hover()<cr>', opts)
-  vim.keymap.set('n', 'gd', '<cmd>lua vim.lsp.buf.definition()<cr>', opts)
-  vim.keymap.set('n', 'gD', '<cmd>lua vim.lsp.buf.declaration()<cr>', opts)
-  vim.keymap.set('n', 'gi', '<cmd>lua vim.lsp.buf.implementation()<cr>', opts)
-  vim.keymap.set('n', 'go', '<cmd>lua vim.lsp.buf.type_definition()<cr>', opts)
-  vim.keymap.set('n', 'gr', '<cmd>lua vim.lsp.buf.references()<cr>', opts)
-  vim.keymap.set('n', 'gs', '<cmd>lua vim.lsp.buf.signature_help()<cr>', opts)
-  vim.keymap.set('n', '<F2>', '<cmd>lua vim.lsp.buf.rename()<cr>', opts)
-  vim.keymap.set({'n', 'x'}, '<F3>', '<cmd>lua vim.lsp.buf.format({async = true})<cr>', opts)
-  vim.keymap.set('n', '<F4>', '<cmd>lua vim.lsp.buf.code_action()<cr>', opts)
-end
-
-lsp_zero.extend_lspconfig({
-  sign_text = true,
-  lsp_attach = lsp_attach,
+-- Global defaults merged into every server config
+vim.lsp.config('*', {
   capabilities = require('cmp_nvim_lsp').default_capabilities(),
 })
 
+-- Mason: used ONLY for non-Go servers. All Go tooling (gopls, templ,
+-- golangci-lint-langserver, goimports, dlv, ...) is managed by my own Go
+-- toolchain in ~/go/bin so there's a single source of truth.
 require('mason').setup({})
 require('mason-lspconfig').setup({
-    -- Replace the language servers listed here
-    -- with the ones you want to install
-    ensure_installed = {'ts_ls', 'golangci_lint_ls', 'gopls', 'templ', 'pylsp'},
-    handlers = {
-        function(server_name)
-            require('lspconfig')[server_name].setup({})
-        end,
-    }
+  ensure_installed = { 'ts_ls', 'pylsp' },
+  -- Don't let Mason auto-enable Go servers it might still have installed;
+  -- we enable those explicitly below from PATH (~/go/bin).
+  automatic_enable = { exclude = { 'gopls', 'templ', 'golangci_lint_ls' } },
 })
 
-local lsp_zero = require('lsp-zero')
+-- Go servers, resolved from PATH (~/go/bin) via nvim-lspconfig's base configs.
+-- vim.lsp.enable uses the `lsp/<name>.lua` runtime config shipped by
+-- nvim-lspconfig (cmd/filetypes/root_dir) plus my after/lsp/gopls.lua overrides.
+vim.lsp.enable({ 'gopls', 'templ', 'golangci_lint_ls' })
 
-local lsp_attach = function(client, bufnr)
-    lsp_zero.default_keymaps({
-        buffer = bufnr,
-        preserve_mappings = false
-    })
-end
-
-lsp_zero.extend_lspconfig({
-    sign_text = true,
-    lsp_attach = lsp_attach,
-})
-
-local pylsp = require('lspconfig').pylsp.setup{
+-- Per-server customization (merges with nvim-lspconfig's lsp/pylsp.lua)
+vim.lsp.config('pylsp', {
   settings = {
     pylsp = {
       plugins = {
-        pycodestyle = {
-          ignore = {'W391'},
-          maxLineLength = 100
-        }
-      }
-    }
-  }
-}
+        pycodestyle = { ignore = { 'W391' }, maxLineLength = 100 },
+      },
+    },
+  },
+})
 
--- Enable completion
+-- Buffer-local keymaps + inlay hints, server-agnostic
+vim.api.nvim_create_autocmd('LspAttach', {
+  group = vim.api.nvim_create_augroup('UserLspAttach', {}),
+  callback = function(ev)
+    local opts = { buffer = ev.buf }
+    -- Complement the 0.11 defaults (grn/gra/grr/gri/grt/K/gO/<C-s>)
+    vim.keymap.set('n', 'gd', vim.lsp.buf.definition, opts)
+    vim.keymap.set('n', 'gD', vim.lsp.buf.declaration, opts)
+    vim.keymap.set('n', 'go', vim.lsp.buf.type_definition, opts)
+    vim.keymap.set({ 'n', 'x' }, '<F3>', function()
+      vim.lsp.buf.format({ async = true })
+    end, opts)
+
+    -- Inlay hints (Nvim 0.11 + gopls 0.23 support them)
+    local client = vim.lsp.get_client_by_id(ev.data.client_id)
+    if client and client:supports_method('textDocument/inlayHint') then
+      vim.lsp.inlay_hint.enable(true, { bufnr = ev.buf })
+    end
+  end,
+})
+
+-- Completion
+-- Load friendly-snippets (VSCode-format) into LuaSnip
+require('luasnip.loaders.from_vscode').lazy_load()
+
 local cmp = require('cmp')
-local cmp_action = require('lsp-zero').cmp_action()
-
 cmp.setup({
   sources = {
-    {name = 'nvim_lsp'},
+    { name = 'nvim_lsp' },
+    { name = 'luasnip' },
+    { name = 'buffer' },
+    { name = 'path' },
   },
   mapping = cmp.mapping.preset.insert({
-    -- Navigate between completion items
-    ['<C-p>'] = cmp.mapping.select_prev_item({behavior = 'select'}),
-    ['<C-n>'] = cmp.mapping.select_next_item({behavior = 'select'}),
-
-    -- `Enter` key to confirm completion
-    ['<CR>'] = cmp.mapping.confirm({select = false}),
-
-    -- Ctrl+Space to trigger completion menu
+    ['<C-p>'] = cmp.mapping.select_prev_item({ behavior = 'select' }),
+    ['<C-n>'] = cmp.mapping.select_next_item({ behavior = 'select' }),
+    ['<CR>'] = cmp.mapping.confirm({ select = false }),
     ['<C-Space>'] = cmp.mapping.complete(),
-
-   -- Scroll up and down in the completion documentation
     ['<C-u>'] = cmp.mapping.scroll_docs(-4),
     ['<C-d>'] = cmp.mapping.scroll_docs(4),
   }),
   snippet = {
-    expand = function(args)
-      vim.snippet.expand(args.body)
-    end,
+    expand = function(args) require('luasnip').lsp_expand(args.body) end,
   },
 })

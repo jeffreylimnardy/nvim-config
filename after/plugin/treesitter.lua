@@ -1,24 +1,29 @@
-require'nvim-treesitter.configs'.setup { 
-  -- A list of parser names, or "all" (the listed parsers MUST always be installed)
-  ensure_installed = { "javascript", "typescript", "go", "c", "lua", "vim", "vimdoc", "query", "markdown", "markdown_inline", "yaml" },
+-- nvim-treesitter `main` branch API (required for Neovim 0.12+).
+-- The old `require'nvim-treesitter.configs'.setup{ ... }` no longer exists.
 
-  -- Install parsers synchronously (only applied to `ensure_installed`)
-  sync_install = false,
-
-  -- Automatically install missing parsers when entering buffer
-  -- Recommendation: set to false if you don't have `tree-sitter` CLI installed locally
-  auto_install = true,
-
-  -- List of parsers to ignore installing (or "all")
-  -- ignore_install = { "javascript" },
-
-  highlight = {
-    enable = true,
-
-    -- Setting this to true will run `:h syntax` and tree-sitter at the same time.
-    -- Set this to `true` if you depend on 'syntax' being enabled (like for indentation).
-    -- Using this option may slow down your editor, and you may see some duplicate highlights.
-    -- Instead of true it can also be a list of languages
-    additional_vim_regex_highlighting = false,
-  },
+-- Parsers to install. On the main branch this is explicit; there is no
+-- `ensure_installed`/`auto_install` option in a setup() call anymore.
+local parsers = {
+  "javascript", "typescript", "go", "gomod", "gosum", "gowork", "gotmpl",
+  "templ", "c", "lua", "vim", "vimdoc", "query", "markdown",
+  "markdown_inline", "yaml",
 }
+
+-- Installs any missing parsers (async, no-op for already installed ones).
+require("nvim-treesitter").install(parsers)
+
+-- Highlighting is no longer a setup option; enable it per-buffer with
+-- vim.treesitter.start(). It resolves the language from the filetype, so we
+-- simply try to start it and ignore filetypes without a parser.
+vim.api.nvim_create_autocmd("FileType", {
+  group = vim.api.nvim_create_augroup("TreesitterStart", { clear = true }),
+  callback = function(args)
+    local ft = vim.bo[args.buf].filetype
+    local lang = vim.treesitter.language.get_lang(ft)
+    if lang and vim.treesitter.language.add(lang) then
+      vim.treesitter.start(args.buf, lang)
+      -- Optional: experimental treesitter-based indentation.
+      vim.bo[args.buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+    end
+  end,
+})
